@@ -1,0 +1,1014 @@
+
+
+```{r loadSurvivalData,echo=FALSE,eval=FALSE}
+dpm <- read.table("codeMDM_trial/dpmTrialResults.txt",sep="\t",header=FALSE)
+names(dpm) <- c("paramID","Category","Strategy","Survival")
+status <- rep(1,length(dpm$Survival))
+status[dpm$Survival >= 1800] <- 0
+dpm$Status <- status
+
+dpm.bothSame <- subset(dpm,Category == "bothSame")
+dpm.diffMove1 <- subset(dpm,Category == "secondSame")
+dpm.diffMove2 <- subset(dpm,Category == "firstSame")
+dpm.bothDiff <- subset(dpm,Category == "bothDiff")
+
+library(survival)
+library(survminer)
+
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = dpm.bothDiff)
+ggsurvplot(fit,data=dpm.bothDiff,title="Both Moves Different",pval=FALSE)
+
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = dpm.diffMove1)
+ggsurvplot(fit,data=dpm.diffMove1, title = "Diff Move 1",pval=FALSE)
+
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = dpm.diffMove2)
+ggsurvplot(fit,data=dpm.diffMove2, title = "Diff Move 2",pval=FALSE)
+
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = dpm.bothSame)
+ggsurvplot(fit,data=dpm.bothSame, title = "Both Moves Same",pval=FALSE)
+
+dpm.bothDiff.dpm = subset(dpm.bothDiff,Strategy != "Strgy2.2trial")
+haz.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.bothDiff.dpm)
+dpm.bothDiff.dpmTrail = subset(dpm.bothDiff,Strategy != "Strgy2.2")
+haz.bothDiff.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.bothDiff.dpmTrail)
+
+dpm.bothSame.dpm = subset(dpm.bothSame,Strategy != "Strgy2.2trial")
+haz.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.bothSame.dpm)
+dpm.bothSame.dpmTrail = subset(dpm.bothSame,Strategy != "Strgy2.2")
+haz.bothSame.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.bothSame.dpmTrail)
+
+dpm.diffMove1.dpm = subset(dpm.diffMove1,Strategy != "Strgy2.2trial")
+haz.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.diffMove1.dpm)
+dpm.diffMove1.dpmTrail = subset(dpm.diffMove1,Strategy != "Strgy2.2")
+haz.diffMove1.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.diffMove1.dpmTrail)
+
+dpm.diffMove2.dpm = subset(dpm.diffMove2,Strategy != "Strgy2.2trial")
+haz.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.diffMove2.dpm)
+dpm.diffMove2.dpmTrail = subset(dpm.diffMove2,Strategy != "Strgy2.2")
+haz.diffMove2.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.diffMove2.dpmTrail)
+
+
+
+
+library(ggplot2)
+ggplot(dpm, aes(x=Survival,fill=Strategy)) + 
+  geom_histogram(position = "dodge") 
+
+dpm.strgy0 <- subset(dpm,Strategy == "Strgy0")
+dpm.strgy22 <- subset(dpm,Strategy == "Strgy2.2")
+dpm.strgy22trial <- subset(dpm,Strategy == "Strgy2.2trial")
+
+dpm.merge <- merge(dpm.strgy0,dpm.strgy22,by="paramID")
+dpm.merge$survDiff <- dpm.merge$Survival.y - dpm.merge$Survival.x
+survDiff <- dpm.merge[dpm.merge$survDiff > 56 & dpm.merge$survDiff > 0.25*dpm.merge$Survival.x,]
+
+length(survDiff[survDiff$Category.x == "bothSame",]$paramID)
+length(survDiff[survDiff$Category.x == "bothDiff",]$paramID)
+length(survDiff[survDiff$Category.x == "secondSame",]$paramID)
+length(survDiff[survDiff$Category.x == "firstSame",]$paramID)
+
+dpm.merge2 <- merge(dpm.strgy0,dpm.strgy22trial,by="paramID")
+dpm.merge2$survDiff.2 <- dpm.merge2$Survival.y - dpm.merge2$Survival.x
+survDiff.2 <- dpm.merge2[dpm.merge2$survDiff.2 > 56 & dpm.merge2$survDiff.2 > 0.25*dpm.merge2$Survival.x,]
+
+length(survDiff.2[survDiff.2$Category.x == "bothSame",]$paramID)
+length(survDiff.2[survDiff.2$Category.x == "bothDiff",]$paramID)
+length(survDiff.2[survDiff.2$Category.x == "secondSame",]$paramID)
+length(survDiff.2[survDiff.2$Category.x == "firstSame",]$paramID)
+
+
+dpm$catStrat <- paste(dpm$Category,dpm$Survival,sep="-")
+
+
+```
+
+all input parameteres and selected model output, one row per record
+improvement defined as at least 60 day improvement and increase of 25% over standard therapy
+
+For DPM to have an effect, the risk reduction with respect to R12 formation must be greater with drug 2 that with drug 1, ie:
+
+Sa(R1, D2) X R1 X T(R1, R12) +    Sa(R2, D2) X R2 X T(R2, R12),  >    Sa(R2, D1) X R2 X T(R2, R12) +  Sa(R1, D1) X R1 X T(R1, R12) 
+
+```{r readAllParams,echo=FALSE,eval=FALSE}
+simResults <- read.table("dpmTrialResults_allParams.txt",sep="\t",header=TRUE)
+simResults$improvementDays_DPM <- simResults$Surv_2.2 - simResults$Surv_0
+simResults$improvementPercent_DPM <- simResults$improvementDays_DPM/simResults$Surv_0
+
+simResults$improvementDays_DPMtrial <- simResults$Surv_2.2trial - simResults$Surv_0
+simResults$improvementPercent_DPMtrial <- simResults$improvementDays_DPMtrial/simResults$Surv_0
+
+simResults$improvementDPM <- (simResults$improvementDays_DPM > 60 & simResults$improvementPercent_DPM > 0.25)
+simResults$improvementDPMtrial <- (simResults$improvementDays_DPMtrial > 60 & simResults$improvementPercent_DPMtrial > 0.25)
+
+simResults$benefitPrediction1 <- (((simResults$Sa.R1.D2. * simResults$R1pop * simResults$T.R12..R1.) + 
+                                    (simResults$Sa.R2.D2. * simResults$R2pop * simResults$T.R12..R2.)) > 
+                                    ((simResults$Sa.R1.D1. * simResults$R1pop * simResults$T.R12..R1.) + 
+                                       (simResults$Sa.R2.D1. * simResults$R2pop * simResults$T.R12..R2.)))
+
+save(simResults,file="simResults.RData")
+```
+
+
+
+```{r updateSimResults,echo=FALSE,eval=FALSE}
+#Necessary because of error in annotation header documentation
+load("simResults.RData")
+names(simResults)[21:24] <- c("Sa.R2.D1.","Sa.R2.D2.","Sa.R1.D1.","Sa.R1.D2.")
+
+simResults$benefitPrediction1 <- (((simResults$Sa.R1.D2. * simResults$R1pop * simResults$T.R12..R1.) + 
+                                    (simResults$Sa.R2.D2. * simResults$R2pop * simResults$T.R12..R2.)) > 
+                                    ((simResults$Sa.R1.D1. * simResults$R1pop * simResults$T.R12..R1.) + 
+                                       (simResults$Sa.R2.D1. * simResults$R2pop * simResults$T.R12..R2.)))
+
+save(simResults,file="simResults.RData")
+
+```
+
+```{r predictions,eval=FALSE,echo=FALSE}
+load("simResults.RData")
+prediction_Correct.trial = subset(simResults,improvementDPMtrial == benefitPrediction1)
+prediction_Incorrect.trial = subset(simResults,improvementDPMtrial != benefitPrediction1)
+
+prediction_TruePos.trial = subset(simResults,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial = subset(simResults,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial = subset(simResults,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial = subset(simResults,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+prediction_TruePos.dmp = subset(simResults,improvementDPM == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.dpm = subset(simResults,improvementDPM == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.dpm = subset(simResults,improvementDPM == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.dpm = subset(simResults,improvementDPM == TRUE & benefitPrediction1 == FALSE)
+
+```
+
+
+```{r plotBenefitTraits, echo = FALSE, eval = FALSE}
+load("simResults.RData")
+
+benefit.DPM <- simResults[simResults$improvementDPM,]
+benefit.DPMtrial <- simResults[simResults$improvementDPMtrial,]
+
+library(ggplot2)
+ggplot(benefit.DPM,aes(y=improvementDays_DPM,x=Category)) +
+  geom_violin()
+ggplot(benefit.DPMtrial,aes(y=improvementDays_DPMtrial,x=Category)) +
+  geom_violin()
+
+```
+
+```{r sequenceAnal, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path0 = subset(simResults,Drug1Step1_2.2 == 1 & Drug1Step2_2.2 == 1)
+simResults.path1 = subset(simResults,Drug1Step1_2.2 == 1 & Drug1Step2_2.2 == 0)
+simResults.path2 = subset(simResults,Drug1Step1_2.2 == 1 & Drug1Step2_2.2 == 0.5)
+simResults.path3 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 1)
+simResults.path4 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 0)
+simResults.path5 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 0.5)
+simResults.path6 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 1)
+simResults.path7 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 0)
+simResults.path8 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 0.5)
+
+summary(simResults.path0$Category)
+summary(simResults.path1$Category)
+summary(simResults.path2$Category)
+summary(simResults.path3$Category)
+summary(simResults.path4$Category)
+summary(simResults.path5$Category)
+summary(simResults.path6$Category)
+summary(simResults.path7$Category)
+summary(simResults.path8$Category)
+
+km.path0 = simResults.path0[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path0 <- melt(km.path0,id.vars = c("paramID","Category"))
+names(km.path0)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path0$Survival))
+status[km.path0$Survival >= 1800] <- 0
+km.path0$Status <- status
+
+km.path0.bothSame <- km.path0[km.path0$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.bothSame)
+pTitle = paste("D1:D1 - bothSame n = ",length(km.path0.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.bothSame,title=pTitle,pval=FALSE)
+
+km.path0.bothDiff <- km.path0[km.path0$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path0.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path0.bothDiff,title=pTitle,pval=FALSE)
+
+km.path0.firstSame <- km.path0[km.path0$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path0.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.firstSame,title=pTitle,pval=FALSE)
+
+km.path0.secondSame <- km.path0[km.path0$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path0.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.secondSame,title=pTitle,pval=FALSE)
+
+
+
+km.path1 = simResults.path1[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path1 <- melt(km.path1,id.vars = c("paramID","Category"))
+names(km.path1)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path1$Survival))
+status[km.path1$Survival >= 1800] <- 0
+km.path1$Status <- status
+
+km.path1.bothSame <- km.path1[km.path1$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.bothSame)
+pTitle = paste("D1:D2 - bothSame n = ",length(km.path1.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.bothSame,title=pTitle,pval=FALSE)
+
+km.path1.bothDiff <- km.path1[km.path1$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.bothDiff)
+pTitle = paste("D1:D2 - bothDiff n = ",length(km.path1.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path1.bothDiff,title=pTitle,pval=FALSE)
+
+km.path1.firstSame <- km.path1[km.path1$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.firstSame)
+pTitle = paste("D1:D2 - firstSame n = ",length(km.path1.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.firstSame,title=pTitle,pval=FALSE)
+
+km.path1.secondSame <- km.path1[km.path1$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.secondSame)
+pTitle = paste("D1:D2 - secondSame n = ",length(km.path1.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.secondSame,title=pTitle,pval=FALSE)
+
+
+
+km.path2 = simResults.path2[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path2 <- melt(km.path2,id.vars = c("paramID","Category"))
+names(km.path2)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path2$Survival))
+status[km.path2$Survival >= 1800] <- 0
+km.path2$Status <- status
+
+#km.path2.bothSame <- km.path2[km.path2$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.bothSame)
+#pTitle = paste("D1:comb - bothSame n = ",length(km.path2.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path2.bothSame,title=pTitle,pval=FALSE)
+
+km.path2.bothDiff <- km.path2[km.path2$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.bothDiff)
+pTitle = paste("D1:comb - bothDiff n = ",length(km.path2.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path2.bothDiff,title=pTitle,pval=FALSE)
+
+km.path2.firstSame <- km.path2[km.path2$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.firstSame)
+pTitle = paste("D1:comb - firstSame n = ",length(km.path2.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path2.firstSame,title=pTitle,pval=FALSE)
+
+#km.path2.secondSame <- km.path2[km.path2$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.secondSame)
+#pTitle = paste("D1:D1 - secondSame n = ",length(km.path2.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path2.secondSame,title=pTitle,pval=FALSE)
+
+
+
+
+km.path3 = simResults.path3[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path3 <- melt(km.path3,id.vars = c("paramID","Category"))
+names(km.path3)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path3$Survival))
+status[km.path3$Survival >= 1800] <- 0
+km.path3$Status <- status
+
+#km.path3.bothSame <- km.path3[km.path3$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.bothSame)
+#pTitle = paste("comb:D1 - bothSame n = ",length(km.path3.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path3.bothSame,title=pTitle,pval=FALSE)
+
+km.path3.bothDiff <- km.path3[km.path3$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.bothDiff)
+pTitle = paste("comb:D1 - bothDiff n = ",length(km.path3.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path3.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path3.firstSame <- km.path3[km.path3$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.firstSame)
+#pTitle = paste("comb:D1 - firstSame n = ",length(km.path3.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path3.firstSame,title=pTitle,pval=FALSE)
+
+km.path3.secondSame <- km.path3[km.path3$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.secondSame)
+pTitle = paste("comb:D1 - secondSame n = ",length(km.path3.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path3.secondSame,title=pTitle,pval=FALSE)
+
+
+
+
+km.path4 = simResults.path4[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path4 <- melt(km.path4,id.vars = c("paramID","Category"))
+names(km.path4)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path4$Survival))
+status[km.path4$Survival >= 1800] <- 0
+km.path4$Status <- status
+
+#km.path4.bothSame <- km.path4[km.path4$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.bothSame)
+#pTitle = paste("comb:D2 - bothSame n = ",length(km.path4.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path4.bothSame,title=pTitle,pval=FALSE)
+
+km.path4.bothDiff <- km.path4[km.path4$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.bothDiff)
+pTitle = paste("comb:D2 - bothDiff n = ",length(km.path4.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path4.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path4.firstSame <- km.path4[km.path4$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.firstSame)
+#pTitle = paste("comb:D2 - firstSame n = ",length(km.path4.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path4.firstSame,title=pTitle,pval=FALSE)
+
+km.path4.secondSame <- km.path4[km.path4$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.secondSame)
+pTitle = paste("comb:D2 - secondSame n = ",length(km.path4.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path4.secondSame,title=pTitle,pval=FALSE)
+
+
+
+km.path5 = simResults.path5[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path5 <- melt(km.path5,id.vars = c("paramID","Category"))
+names(km.path5)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path5$Survival))
+status[km.path5$Survival >= 1800] <- 0
+km.path5$Status <- status
+
+#km.path5.bothSame <- km.path5[km.path5$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.bothSame)
+#pTitle = paste("comb:comb - bothSame n = ",length(km.path5.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.bothSame,title=pTitle,pval=FALSE)
+
+km.path5.bothDiff <- km.path5[km.path5$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.bothDiff)
+pTitle = paste("comb:comb - bothDiff n = ",length(km.path5.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path5.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path5.firstSame <- km.path5[km.path5$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.firstSame)
+#pTitle = paste("comb:comb - firstSame n = ",length(km.path5.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.firstSame,title=pTitle,pval=FALSE)
+
+#km.path5.secondSame <- km.path5[km.path5$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.secondSame)
+#pTitle = paste("comb:comb - secondSame n = ",length(km.path5.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.secondSame,title=pTitle,pval=FALSE)
+
+
+
+km.path6 = simResults.path6[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path6 <- melt(km.path6,id.vars = c("paramID","Category"))
+names(km.path6)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path6$Survival))
+status[km.path6$Survival >= 1800] <- 0
+km.path6$Status <- status
+
+km.path6.bothSame <- km.path6[km.path6$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.bothSame)
+pTitle = paste("D2:D1 - bothSame n = ",length(km.path6.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.bothSame,title=pTitle,pval=FALSE)
+
+km.path6.bothDiff <- km.path6[km.path6$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.bothDiff)
+pTitle = paste("D2:D1 - bothDiff n = ",length(km.path6.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path6.bothDiff,title=pTitle,pval=FALSE)
+
+km.path6.firstSame <- km.path6[km.path6$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.firstSame)
+pTitle = paste("D2:D1 - firstSame n = ",length(km.path6.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.firstSame,title=pTitle,pval=FALSE)
+
+km.path6.secondSame <- km.path6[km.path6$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.secondSame)
+pTitle = paste("D2:D1 - secondSame n = ",length(km.path6.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.secondSame,title=pTitle,pval=FALSE)
+
+
+
+km.path7 = simResults.path7[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path7 <- melt(km.path7,id.vars = c("paramID","Category"))
+names(km.path7)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path7$Survival))
+status[km.path7$Survival >= 1800] <- 0
+km.path7$Status <- status
+
+km.path7.bothSame <- km.path7[km.path7$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.bothSame)
+pTitle = paste("D2:D2 - bothSame n = ",length(km.path7.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.bothSame,title=pTitle,pval=FALSE)
+
+km.path7.bothDiff <- km.path7[km.path7$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.bothDiff)
+pTitle = paste("D2:D2 - bothDiff n = ",length(km.path7.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path7.bothDiff,title=pTitle,pval=FALSE)
+
+km.path7.firstSame <- km.path7[km.path7$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.firstSame)
+pTitle = paste("D2:D2 - firstSame n = ",length(km.path7.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.firstSame,title=pTitle,pval=FALSE)
+
+km.path7.secondSame <- km.path7[km.path7$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.secondSame)
+pTitle = paste("D2:D2 - secondSame n = ",length(km.path7.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.secondSame,title=pTitle,pval=FALSE)
+
+
+km.path8 = simResults.path8[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path8 <- melt(km.path8,id.vars = c("paramID","Category"))
+names(km.path8)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path8$Survival))
+status[km.path8$Survival >= 1800] <- 0
+km.path8$Status <- status
+
+#km.path8.bothSame <- km.path8[km.path8$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.bothSame)
+#pTitle = paste("D2:comb - bothSame n = ",length(km.path8.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path8.bothSame,title=pTitle,pval=FALSE)
+
+km.path8.bothDiff <- km.path8[km.path8$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.bothDiff)
+pTitle = paste("D2:comb - bothDiff n = ",length(km.path8.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path8.bothDiff,title=pTitle,pval=FALSE)
+
+km.path8.firstSame <- km.path8[km.path8$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.firstSame)
+pTitle = paste("D2:comb - firstSame n = ",length(km.path8.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path8.firstSame,title=pTitle,pval=FALSE)
+
+#km.path8.secondSame <- km.path8[km.path8$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.secondSame)
+#pTitle = paste("D2:comb - secondSame n = ",length(km.path8.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path8.secondSame,title=pTitle,pval=FALSE)
+
+
+
+```
+
+
+```{r sequenceAnal_path0, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+#
+
+simResults.path0 = subset(simResults,Drug1Step1_0 == 1 & Drug1Step2_0 == 1)
+summary(simResults.path0$Category)
+
+km.path0 = simResults.path0[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path0 <- melt(km.path0,id.vars = c("paramID","Category"))
+names(km.path0)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path0$Survival))
+status[km.path0$Survival >= 1800] <- 0
+km.path0$Status <- status
+
+km.path0.bothSame <- km.path0[km.path0$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.bothSame)
+pTitle = paste("D1:D1 - bothSame n = ",length(km.path0.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.bothSame,title=pTitle,pval=FALSE)
+
+km.path0.bothDiff <- km.path0[km.path0$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path0.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path0.bothDiff,title=pTitle,pval=FALSE)
+
+km.path0.firstSame <- km.path0[km.path0$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path0.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.firstSame,title=pTitle,pval=FALSE)
+
+km.path0.secondSame <- km.path0[km.path0$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path0.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path0.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path0.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path0 = subset(simResults.path0,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path0 = subset(simResults.path0,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path0 = subset(simResults.path0,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path0 = subset(simResults.path0,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+dpm.path0.bothSame.dpm = subset(km.path0.bothSame,Strategy != "Strgy2.2trial")
+haz.path0.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.bothSame.dpm)
+dpm.path0.bothSame.dpmTrail = subset(km.path0.bothSame,Strategy != "Strgy2.2")
+haz.path0.bothSame.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.bothSame.dpmTrail)
+
+dpm.path0.bothDiff.dpm = subset(km.path0.bothDiff,Strategy != "Strgy2.2trial")
+haz.path0.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.bothDiff.dpm)
+dpm.path0.bothDiff.dpmTrail = subset(km.path0.bothDiff,Strategy != "Strgy2.2")
+haz.path0.bothDiff.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.bothDiff.dpmTrail)
+
+dpm.path0.diffMove1.dpm = subset(km.path0.secondSame,Strategy != "Strgy2.2trial")
+haz.path0.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.diffMove1.dpm)
+dpm.path0.diffMove1.dpmTrail = subset(km.path0.secondSame,Strategy != "Strgy2.2")
+haz.path0.diffMove1.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.diffMove1.dpmTrail)
+
+dpm.path0.diffMove2.dpm = subset(km.path0.firstSame,Strategy != "Strgy2.2trial")
+haz.path0.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.diffMove2.dpm)
+dpm.path0.diffMove2.dpmTrail = subset(km.path0.firstSame,Strategy != "Strgy2.2")
+haz.path0.diffMove2.dpmTrial = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path0.diffMove2.dpmTrail)
+
+haz.path0.bothSame.dpm
+haz.path0.bothSame.dpmTrial
+haz.path0.bothDiff.dpm
+haz.path0.bothDiff.dpmTrial
+haz.path0.diffMove1.dpm
+haz.path0.diffMove1.dpmTrial
+haz.path0.diffMove2.dpm
+haz.path0.diffMove2.dpmTrial
+
+```
+
+```{r sequenceAnal_path1, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+
+simResults.path1 = subset(simResults,Drug1Step1_2.2 == 1 & Drug1Step2_2.2 == 0)
+summary(simResults.path1$Category)
+
+km.path1 = simResults.path1[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path1 <- melt(km.path1,id.vars = c("paramID","Category"))
+names(km.path1)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path1$Survival))
+status[km.path1$Survival >= 1800] <- 0
+km.path1$Status <- status
+
+km.path1.bothSame <- km.path1[km.path1$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.bothSame)
+pTitle = paste("D1:D1 - bothSame n = ",length(km.path1.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.bothSame,title=pTitle,pval=FALSE)
+
+km.path1.bothDiff <- km.path1[km.path1$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path1.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path1.bothDiff,title=pTitle,pval=FALSE)
+
+km.path1.firstSame <- km.path1[km.path1$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path1.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.firstSame,title=pTitle,pval=FALSE)
+
+km.path1.secondSame <- km.path1[km.path1$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path1.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path1.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path1.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path1 = subset(simResults.path1,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path1 = subset(simResults.path1,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path1 = subset(simResults.path1,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path1 = subset(simResults.path1,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+dpm.path1.bothSame.dpm = subset(km.path1.bothSame,Strategy != "Strgy2.2trial")
+haz.path1.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path1.bothSame.dpm)
+
+dpm.path1.bothDiff.dpm = subset(km.path1.bothDiff,Strategy != "Strgy2.2trial")
+haz.path1.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path1.bothDiff.dpm)
+
+dpm.path1.diffMove1.dpm = subset(km.path1.secondSame,Strategy != "Strgy2.2trial")
+haz.path1.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path1.diffMove1.dpm)
+
+dpm.path1.diffMove2.dpm = subset(km.path1.firstSame,Strategy != "Strgy2.2trial")
+haz.path1.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path1.diffMove2.dpm)
+
+haz.path1.bothSame.dpm
+haz.path1.bothDiff.dpm
+haz.path1.diffMove1.dpm
+haz.path1.diffMove2.dpm
+
+```
+
+```{r sequenceAnal_path2, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path2 = subset(simResults,Drug1Step1_2.2 == 1 & Drug1Step2_2.2 == 0.5)
+summary(simResults.path2$Category)
+
+km.path2 = simResults.path2[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path2 <- melt(km.path2,id.vars = c("paramID","Category"))
+names(km.path2)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path2$Survival))
+status[km.path2$Survival >= 1800] <- 0
+km.path2$Status <- status
+
+#km.path2.bothSame <- km.path2[km.path2$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.bothSame)
+#pTitle = paste("D1:D1 - bothSame n = ",length(km.path2.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path2.bothSame,title=pTitle,pval=FALSE)
+
+km.path2.bothDiff <- km.path2[km.path2$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path2.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path2.bothDiff,title=pTitle,pval=FALSE)
+
+km.path2.firstSame <- km.path2[km.path2$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path2.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path2.firstSame,title=pTitle,pval=FALSE)
+
+#km.path2.secondSame <- km.path2[km.path2$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path2.secondSame)
+#pTitle = paste("D1:D1 - secondSame n = ",length(km.path2.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path2.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path2 = subset(simResults.path2,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path2 = subset(simResults.path2,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path2 = subset(simResults.path2,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path2 = subset(simResults.path2,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+#dpm.path2.bothSame.dpm = subset(km.path2.bothSame,Strategy != "Strgy2.2trial")
+#haz.path2.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path2.bothSame.dpm)
+
+dpm.path2.bothDiff.dpm = subset(km.path2.bothDiff,Strategy != "Strgy2.2trial")
+haz.path2.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path2.bothDiff.dpm)
+
+#dpm.path2.diffMove1.dpm = subset(km.path2.secondSame,Strategy != "Strgy2.2trial")
+#haz.path2.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path2.diffMove1.dpm)
+
+dpm.path2.diffMove2.dpm = subset(km.path2.firstSame,Strategy != "Strgy2.2trial")
+haz.path2.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path2.diffMove2.dpm)
+
+#haz.path2.bothSame.dpm
+haz.path2.bothDiff.dpm
+#haz.path2.diffMove1.dpm
+haz.path2.diffMove2.dpm
+
+```
+
+```{r sequenceAnal_path3, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path3 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 1)
+summary(simResults.path3$Category)
+
+km.path3 = simResults.path3[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path3 <- melt(km.path3,id.vars = c("paramID","Category"))
+names(km.path3)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path3$Survival))
+status[km.path3$Survival >= 1800] <- 0
+km.path3$Status <- status
+
+#km.path3.bothSame <- km.path3[km.path3$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.bothSame)
+#pTitle = paste("D1:D1 - bothSame n = ",length(km.path3.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path3.bothSame,title=pTitle,pval=FALSE)
+
+km.path3.bothDiff <- km.path3[km.path3$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path3.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path3.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path3.firstSame <- km.path3[km.path3$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.firstSame)
+#pTitle = paste("D1:D1 - firstSame n = ",length(km.path3.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path3.firstSame,title=pTitle,pval=FALSE)
+
+km.path3.secondSame <- km.path3[km.path3$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path3.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path3.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path3.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path3 = subset(simResults.path3,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path3 = subset(simResults.path3,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path3 = subset(simResults.path3,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path3 = subset(simResults.path3,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+#dpm.path3.bothSame.dpm = subset(km.path3.bothSame,Strategy != "Strgy2.2trial")
+#haz.path3.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path3.bothSame.dpm)
+
+dpm.path3.bothDiff.dpm = subset(km.path3.bothDiff,Strategy != "Strgy2.2trial")
+haz.path3.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path3.bothDiff.dpm)
+
+dpm.path3.diffMove1.dpm = subset(km.path3.secondSame,Strategy != "Strgy2.2trial")
+haz.path3.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path3.diffMove1.dpm)
+
+#dpm.path3.diffMove2.dpm = subset(km.path3.firstSame,Strategy != "Strgy2.2trial")
+#haz.path3.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path3.diffMove2.dpm)
+
+#haz.path3.bothSame.dpm
+haz.path3.bothDiff.dpm
+haz.path3.diffMove1.dpm
+#haz.path3.diffMove2.dpm
+
+```
+
+
+
+```{r sequenceAnal_path4, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path4 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 0)
+summary(simResults.path4$Category)
+
+km.path4 = simResults.path4[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path4 <- melt(km.path4,id.vars = c("paramID","Category"))
+names(km.path4)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path4$Survival))
+status[km.path4$Survival >= 1800] <- 0
+km.path4$Status <- status
+
+#km.path4.bothSame <- km.path4[km.path4$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.bothSame)
+#pTitle = paste("D1:D1 - bothSame n = ",length(km.path4.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path4.bothSame,title=pTitle,pval=FALSE)
+
+km.path4.bothDiff <- km.path4[km.path4$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path4.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path4.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path4.firstSame <- km.path4[km.path4$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.firstSame)
+#pTitle = paste("D1:D1 - firstSame n = ",length(km.path4.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path4.firstSame,title=pTitle,pval=FALSE)
+
+km.path4.secondSame <- km.path4[km.path4$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path4.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path4.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path4.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path4 = subset(simResults.path4,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path4 = subset(simResults.path4,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path4 = subset(simResults.path4,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path4 = subset(simResults.path4,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+#dpm.path4.bothSame.dpm = subset(km.path4.bothSame,Strategy != "Strgy2.2trial")
+#haz.path4.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path4.bothSame.dpm)
+
+dpm.path4.bothDiff.dpm = subset(km.path4.bothDiff,Strategy != "Strgy2.2trial")
+haz.path4.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path4.bothDiff.dpm)
+
+dpm.path4.diffMove1.dpm = subset(km.path4.secondSame,Strategy != "Strgy2.2trial")
+haz.path4.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path4.diffMove1.dpm)
+
+#dpm.path4.diffMove2.dpm = subset(km.path4.firstSame,Strategy != "Strgy2.2trial")
+#haz.path4.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path4.diffMove2.dpm)
+
+#haz.path4.bothSame.dpm
+haz.path4.bothDiff.dpm
+haz.path4.diffMove1.dpm
+#haz.path4.diffMove2.dpm
+
+```
+
+
+
+```{r sequenceAnal_path5, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path5 = subset(simResults,Drug1Step1_2.2 == 0.5 & Drug1Step2_2.2 == 0.5)
+summary(simResults.path5$Category)
+
+km.path5 = simResults.path5[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path5 <- melt(km.path5,id.vars = c("paramID","Category"))
+names(km.path5)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path5$Survival))
+status[km.path5$Survival >= 1800] <- 0
+km.path5$Status <- status
+
+#km.path5.bothSame <- km.path5[km.path5$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.bothSame)
+#pTitle = paste("D1:D1 - bothSame n = ",length(km.path5.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.bothSame,title=pTitle,pval=FALSE)
+
+km.path5.bothDiff <- km.path5[km.path5$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path5.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path5.bothDiff,title=pTitle,pval=FALSE)
+
+#km.path5.firstSame <- km.path5[km.path5$Category == "firstSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.firstSame)
+#pTitle = paste("D1:D1 - firstSame n = ",length(km.path5.firstSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.firstSame,title=pTitle,pval=FALSE)
+
+#km.path5.secondSame <- km.path5[km.path5$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path5.secondSame)
+#pTitle = paste("D1:D1 - secondSame n = ",length(km.path5.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path5.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path5 = subset(simResults.path5,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path5 = subset(simResults.path5,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path5 = subset(simResults.path5,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path5 = subset(simResults.path5,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+#dpm.path5.bothSame.dpm = subset(km.path5.bothSame,Strategy != "Strgy2.2trial")
+#haz.path5.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path5.bothSame.dpm)
+
+dpm.path5.bothDiff.dpm = subset(km.path5.bothDiff,Strategy != "Strgy2.2trial")
+haz.path5.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path5.bothDiff.dpm)
+
+#dpm.path5.diffMove1.dpm = subset(km.path5.secondSame,Strategy != "Strgy2.2trial")
+#haz.path5.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path5.diffMove1.dpm)
+
+#dpm.path5.diffMove2.dpm = subset(km.path5.firstSame,Strategy != "Strgy2.2trial")
+#haz.path5.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path5.diffMove2.dpm)
+
+#haz.path5.bothSame.dpm
+haz.path5.bothDiff.dpm
+#haz.path5.diffMove1.dpm
+#haz.path5.diffMove2.dpm
+
+```
+
+
+```{r sequenceAnal_path6, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path6 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 1)
+summary(simResults.path6$Category)
+
+km.path6 = simResults.path6[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path6 <- melt(km.path6,id.vars = c("paramID","Category"))
+names(km.path6)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path6$Survival))
+status[km.path6$Survival >= 1800] <- 0
+km.path6$Status <- status
+
+km.path6.bothSame <- km.path6[km.path6$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.bothSame)
+pTitle = paste("D1:D1 - bothSame n = ",length(km.path6.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.bothSame,title=pTitle,pval=FALSE)
+
+km.path6.bothDiff <- km.path6[km.path6$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path6.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path6.bothDiff,title=pTitle,pval=FALSE)
+
+km.path6.firstSame <- km.path6[km.path6$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path6.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.firstSame,title=pTitle,pval=FALSE)
+
+km.path6.secondSame <- km.path6[km.path6$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path6.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path6.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path6.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path6 = subset(simResults.path6,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path6 = subset(simResults.path6,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path6 = subset(simResults.path6,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path6 = subset(simResults.path6,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+dpm.path6.bothSame.dpm = subset(km.path6.bothSame,Strategy != "Strgy2.2trial")
+haz.path6.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path6.bothSame.dpm)
+
+dpm.path6.bothDiff.dpm = subset(km.path6.bothDiff,Strategy != "Strgy2.2trial")
+haz.path6.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path6.bothDiff.dpm)
+
+dpm.path6.diffMove1.dpm = subset(km.path6.secondSame,Strategy != "Strgy2.2trial")
+haz.path6.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path6.diffMove1.dpm)
+
+dpm.path6.diffMove2.dpm = subset(km.path6.firstSame,Strategy != "Strgy2.2trial")
+haz.path6.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path6.diffMove2.dpm)
+
+haz.path6.bothSame.dpm
+haz.path6.bothDiff.dpm
+haz.path6.diffMove1.dpm
+haz.path6.diffMove2.dpm
+
+```
+
+
+
+```{r sequenceAnal_path7, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path7 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 0)
+summary(simResults.path7$Category)
+
+km.path7 = simResults.path7[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path7 <- melt(km.path7,id.vars = c("paramID","Category"))
+names(km.path7)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path7$Survival))
+status[km.path7$Survival >= 1800] <- 0
+km.path7$Status <- status
+
+km.path7.bothSame <- km.path7[km.path7$Category == "bothSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.bothSame)
+pTitle = paste("D1:D1 - bothSame n = ",length(km.path7.bothSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.bothSame,title=pTitle,pval=FALSE)
+
+km.path7.bothDiff <- km.path7[km.path7$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path7.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path7.bothDiff,title=pTitle,pval=FALSE)
+
+km.path7.firstSame <- km.path7[km.path7$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path7.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.firstSame,title=pTitle,pval=FALSE)
+
+km.path7.secondSame <- km.path7[km.path7$Category == "secondSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path7.secondSame)
+pTitle = paste("D1:D1 - secondSame n = ",length(km.path7.secondSame$paramID)/3)
+ggsurvplot(fit,data=km.path7.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path7 = subset(simResults.path7,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path7 = subset(simResults.path7,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path7 = subset(simResults.path7,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path7 = subset(simResults.path7,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+dpm.path7.bothSame.dpm = subset(km.path7.bothSame,Strategy != "Strgy2.2trial")
+haz.path7.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path7.bothSame.dpm)
+
+dpm.path7.bothDiff.dpm = subset(km.path7.bothDiff,Strategy != "Strgy2.2trial")
+haz.path7.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path7.bothDiff.dpm)
+
+dpm.path7.diffMove1.dpm = subset(km.path7.secondSame,Strategy != "Strgy2.2trial")
+haz.path7.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path7.diffMove1.dpm)
+
+dpm.path7.diffMove2.dpm = subset(km.path7.firstSame,Strategy != "Strgy2.2trial")
+haz.path7.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path7.diffMove2.dpm)
+
+haz.path7.bothSame.dpm
+haz.path7.bothDiff.dpm
+haz.path7.diffMove1.dpm
+haz.path7.diffMove2.dpm
+
+```
+
+
+
+```{r sequenceAnal_path8, echo = FALSE, eval = TRUE}
+library(survival)
+library(survminer)
+library(reshape2)
+load("simResults.RData")
+
+simResults.path8 = subset(simResults,Drug1Step1_2.2 == 0 & Drug1Step2_2.2 == 0.5)
+summary(simResults.path8$Category)
+
+km.path8 = simResults.path8[,c("paramID","Category","Surv_0","Surv_2.2","Surv_2.2trial")]
+km.path8 <- melt(km.path8,id.vars = c("paramID","Category"))
+names(km.path8)[c(3,4)] <- c("Strategy","Survival")
+status <- rep(1,length(km.path8$Survival))
+status[km.path8$Survival >= 1800] <- 0
+km.path8$Status <- status
+
+#km.path8.bothSame <- km.path8[km.path8$Category == "bothSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.bothSame)
+#pTitle = paste("D1:D1 - bothSame n = ",length(km.path8.bothSame$paramID)/3)
+#ggsurvplot(fit,data=km.path8.bothSame,title=pTitle,pval=FALSE)
+
+km.path8.bothDiff <- km.path8[km.path8$Category == "bothDiff",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.bothDiff)
+pTitle = paste("D1:D1 - bothDiff n = ",length(km.path8.bothDiff$paramID)/3)
+ggsurvplot(fit,data=km.path8.bothDiff,title=pTitle,pval=FALSE)
+
+km.path8.firstSame <- km.path8[km.path8$Category == "firstSame",]
+fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.firstSame)
+pTitle = paste("D1:D1 - firstSame n = ",length(km.path8.firstSame$paramID)/3)
+ggsurvplot(fit,data=km.path8.firstSame,title=pTitle,pval=FALSE)
+
+#km.path8.secondSame <- km.path8[km.path8$Category == "secondSame",]
+#fit <- survfit(Surv(Survival,Status) ~ Strategy, data = km.path8.secondSame)
+#pTitle = paste("D1:D1 - secondSame n = ",length(km.path8.secondSame$paramID)/3)
+#ggsurvplot(fit,data=km.path8.secondSame,title=pTitle,pval=FALSE)
+
+prediction_TruePos.trial.path8 = subset(simResults.path8,improvementDPMtrial == TRUE & benefitPrediction1 == TRUE)
+prediction_TrueNeg.trial.path8 = subset(simResults.path8,improvementDPMtrial == FALSE & benefitPrediction1 == FALSE)
+prediction_FalsePos.trial.path8 = subset(simResults.path8,improvementDPMtrial == FALSE & benefitPrediction1 == TRUE)
+prediction_FalseNeg.trial.path8 = subset(simResults.path8,improvementDPMtrial == TRUE & benefitPrediction1 == FALSE)
+
+#dpm.path8.bothSame.dpm = subset(km.path8.bothSame,Strategy != "Strgy2.2trial")
+#haz.path8.bothSame.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path8.bothSame.dpm)
+
+dpm.path8.bothDiff.dpm = subset(km.path8.bothDiff,Strategy != "Strgy2.2trial")
+haz.path8.bothDiff.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path8.bothDiff.dpm)
+
+#dpm.path8.diffMove1.dpm = subset(km.path8.secondSame,Strategy != "Strgy2.2trial")
+#haz.path8.diffMove1.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path8.diffMove1.dpm)
+
+dpm.path8.diffMove2.dpm = subset(km.path8.firstSame,Strategy != "Strgy2.2trial")
+haz.path8.diffMove2.dpm = coxph(formula=Surv(Survival,Status) ~ Strategy,data = dpm.path8.diffMove2.dpm)
+
+#haz.path8.bothSame.dpm
+haz.path8.bothDiff.dpm
+#haz.path8.diffMove1.dpm
+haz.path8.diffMove2.dpm
+
+```
+
+path0

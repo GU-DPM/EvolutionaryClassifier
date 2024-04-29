@@ -1,0 +1,74 @@
+Annotations of simulation outcome files.
+
+Simulation outcomes are stored in multiple files.
+
+param_20181006_xxx.txt: parameter configuration values.
+stopt_20181006_xxx.txt: survival times for each parameter configuration and each strategy.
+dosage_20181006_xxx.txt: dosage combination sequences for each parameter configuration and each strategy.
+pop_20181006_xxx.txt: population composition dynamics for each parameter configuration and each strategy.
+
+xxx denotes the index of the job when I ran simulations in my cluster.  You can simply concatenate the files over all indices.
+
+
+param_20181006_xxx.txt format:
+
+Each line denotes a parameter configuration with the following entries:
+
+(1)parameter configuration index (one entry).
+(2)initial population compositions x0 (four entries, x0(S), x0(R1), x0(R2), x0(R12)).
+(3)growth rate g0 (one entry).
+(4)drug sensitivity matrix Sa (eight entries, Sa(S,drug1), Sa(S,drug2), Sa(R1,drug1), Sa(R1,drug2), ...).
+(5)transition rate matrix T (sixteen entries, T(S->S), T(S->R1), T(S->R2), T(S->R12), T(R1->S), T(R1->R1), T(R1->R2), T(R1->R12), ....
+
+
+stopt_20181006_xxx.txt format:
+
+Each line denotes the survival times (stopping times) of 10 strategies for each parameter configuration.
+
+strategy 0: strategy 0 in the PNAS paper.
+strategy 1: strategy 1 in the PNAS paper.
+strategy 2: strategy 2.1 in the PNAS paper.
+strategy 3: strategy 2.2 in the PNAS paper.
+strategy 4: strategy 3 in the PNAS paper.
+strategy 5: dynamic programming extension of strategy 1 in the Biology Direct paper.
+strategy 6: dynamic programming extension of strategy 2.1 in the Biology Direct paper.
+strategy 7: dynamic programming extension of strategy 2.2 in the Biology Direct paper.
+strategy 8: dynamic programming extension of strategy 3 in the Biology Direct paper.
+strategy 9: global dynamic programming in the Biology Direct paper.
+
+Each line has 11 entries: parameter configuration index and the survival times of the 10 strategies.
+
+The time horizon of the therapy is 1800 days.  Each period is 45 days.  If the patient is cured (the total tumor population = 0), then the survival time is reported as 1845 days.  If the survival time is 1800 days, then the tumor population size is greater than 0 and smaller than the mortal level (1e13).
+
+
+dosage_20181006_xxx.txt format:
+
+Each line denotes the dosage combination sequence of each strategy for each parameter configuration.
+
+(1)parameter configuration index.
+(2)strategy index (0-9).
+(3)(drug1 dosage,drug2 dosage) at t=0.
+(4)(drug1 dosage,drug2 dosage) at t=45.
+...
+(42)(drug1 dosage,drug2 dosage) at t=1755.
+
+If t exceeds the survival time of the strategy, then the drug dosage is set to -1.
+
+
+pop_20181006_xxx.txt format:
+
+Each line denotes the population composition dynamics of each strategy for each parameter configuration.
+
+(1)parameter configuration index.
+(2)strategy index (0-9).
+(3)(S,R1,R1,R12) population size at t=45.
+(4)(S,R1,R1,R12) at t=90.
+...
+(42)(S,R1,R1,R12) at t=1800.
+
+If t exceeds the survival time of the strategy, then the population size is set to -1.
+
+Notice the dosage combination is reported at the beginning of each period, and the population composition is reported at the end of each period.
+
+When the best strategy over strategies 0-8 cures the patient and yields survival time 1800 days, I did not bother running strategy 9 (since it's time consuming).  Thus the dosage combination and population composition should be ignored.
+
