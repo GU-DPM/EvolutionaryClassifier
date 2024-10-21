@@ -94,6 +94,7 @@ def merge_input_output_params(output_param_df, input_param_df):
   return pd.merge(input_param_df, output_param_df, on='Parameter_ID', how='inner')
 
 def map_parameters(sim_run_id, results_dir, mapped_dir):
+  print(str(sim_run_id))
   param_file = os.path.join(sim_results_dir,'param_ALLDRUG_' + str(sim_run_id) + '.csv')
 
   param_df = get_param_df(param_file)
@@ -103,7 +104,7 @@ def map_parameters(sim_run_id, results_dir, mapped_dir):
   param_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_simParamOutput.csv'), header=True, index=False)
   input_param_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_inputParam.csv'), header=True, index=False)
   if len(invalid_params_df) > 0:
-    invalid_params_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_validityCheck.csv'), header=True, index=False)
+    invalid_params_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_invalidParams.csv'), header=True, index=False)
 
 sim_results_dir = '~/sim_trial_results/'
 output_dir = os.path.join(sim_results_dir,'preprocessed_sim_trial_results')
