@@ -50,10 +50,13 @@ def gen_input_params(param_df):
   input_params_dict = {'Parameter_ID' : param_df['Parameter_ID'],
                        'initial_R1_percent' : [x/5e9 for x in param_df['R1_pop'] ],
                        'initial_R2_percent' : [x/5e9 for x in param_df['R2_pop'] ],
+                       'g0' : param_df['g0'],
                        'S_sensitivity_D1_to_g0' : param_df['S_cell_sensitivity_D1']/param_df['g0'],
                        'S_sensitivity_D2_to_S_sensitivity_D1' : param_df['S_cell_sensitivity_D2']/param_df['S_cell_sensitivity_D1'],
                        'R1_sensitivity_D1_to_S_sensitivity_D1' : param_df['R1_cell_sensitivity_D1']/param_df['S_cell_sensitivity_D1'],
                        'R2_sensitivity_D2_to_S_sensitivity_D2' : param_df['R2_cell_sensitivity_D2']/param_df['S_cell_sensitivity_D2'],
+                       'S_transition_to_R1': param_df['S_transition_to_R1'],
+                       'S_transition_to_R2': param_df['S_transition_to_R2'],
                        }
   return pd.DataFrame(input_params_dict)
 
@@ -73,8 +76,8 @@ def check_input_params(input_param_df):
                         'S_sensitivity_D2_to_S_sensitivity_D1' : [0.0004, 0.0015, 0.0054, 0.02, 0.0737, 0.271, 1.0],
                         'R1_sensitivity_D1_to_S_sensitivity_D1' : [0, 1e-05, 9.56e-05, 0.000915, 0.0087, 0.0837, 0.8],
                         'R2_sensitivity_D2_to_S_sensitivity_D2' : [0, 1e-05, 9.56e-05, 0.000915, 0.0087, 0.0837, 0.8],
-                        'S_transition_R1' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
-                        'S_transition_R2' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
+                        'S_transition_to_R1' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
+                        'S_transition_to_R2' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
                         }
   
   valid_parameters = {'Parameter_ID' : input_param_df['Parameter_ID'] }
@@ -106,14 +109,14 @@ def map_parameters(sim_run_id, results_dir, mapped_dir):
   if len(invalid_params_df) > 0:
     invalid_params_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_invalidParams.csv'), header=True, index=False)
 
-sim_results_dir = '~/sim_trial_results/'
+sim_results_dir = '/home/mdm299/sim_trial_results/'
 output_dir = os.path.join(sim_results_dir,'preprocessed_sim_trial_results')
 os.makedirs(output_dir, exist_ok=True)
 
 param_files = os.listdir(sim_results_dir)
 run_id_list = list(set([ os.path.splitext(os.path.basename(x))[0].split("_")[2] for x in param_files ]))
 
+
 #map_parameters(run_id_list[7],sim_results_dir, output_dir)
 with concurrent.futures.ThreadPoolExecutor() as executor:
-    # Submit tasks to the executor
-    futures = [executor.submit(map_parameters, run_id, sim_results_dir, output_dir) for run_id in run_id_list]
+  futures = [executor.submit(map_parameters, run_id, sim_results_dir, output_dir) for run_id in run_id_list]
