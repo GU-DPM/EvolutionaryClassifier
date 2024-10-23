@@ -357,7 +357,7 @@ def process_sim_output(sim_run_id, sim_results_dir, output_dir):
   collect_EC_and_survival(sim_run_id, sim_results_dir, output_dir) 
 
 sim_results_dir = '/home/mdm299/sim_trial_results/'
-output_dir = os.path.join(sim_results_dir,'preprocessed_sim_trial_results')
+output_dir = os.path.join(sim_results_dir,'processed_results')
 os.makedirs(output_dir, exist_ok=True)
 
 param_files = os.listdir(sim_results_dir)
