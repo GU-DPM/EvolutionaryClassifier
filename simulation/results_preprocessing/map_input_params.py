@@ -360,7 +360,7 @@ sim_results_dir = '/home/mdm299/sim_trial_results/'
 output_dir = os.path.join(sim_results_dir,'processed_results')
 os.makedirs(output_dir, exist_ok=True)
 
-param_files = os.listdir(sim_results_dir)
+param_files = [f for f in os.listdir(sim_results_dir) if os.path.isfile(os.path.join(sim_results_dir, f))]
 run_id_list = list(set([ os.path.splitext(os.path.basename(x))[0].split("_")[2] for x in param_files ]))
 
 
