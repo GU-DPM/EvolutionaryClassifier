@@ -1,9 +1,7 @@
-import sys
 import os
 import pandas as pd
 import math
 import numpy as np
-import concurrent.futures
 
 def get_param_df(filename):
   param_column_names = ['Parameter_ID',
@@ -84,12 +82,12 @@ def check_input_params(input_param_df):
                         'S_transition_to_R1' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
                         'S_transition_to_R2' : [1e-11, 2.15e-10, 4.64e-09, 1e-07, 2.15e-06, 4.64e-05, 0.001],
                         }
-  
+
   valid_parameters = {'Parameter_ID' : input_param_df['Parameter_ID'] }
   for input_param in valid_input_values.keys():
     if input_param in input_param_df.columns:
       input_param_df[input_param] = input_param_df[input_param].apply(lambda x: round_to_significant_digits(x,3))
-      valid_parameters[input_param] = input_param_df[input_param].apply(lambda x: x in valid_input_values[input_param]) 
+      valid_parameters[input_param] = input_param_df[input_param].apply(lambda x: x in valid_input_values[input_param])
   invalid_parameters_df = pd.DataFrame(valid_parameters)
   invalid_parameters_df = invalid_parameters_df[invalid_parameters_df.applymap(lambda x: x is False).any(axis=1)]
   return invalid_parameters_df
@@ -109,7 +107,7 @@ def map_parameters(sim_run_id, results_dir, mapped_dir):
   input_param_df = gen_input_params(param_df)
 
   if not os.path.exists(os.path.join(output_dir,str(sim_run_id) + '_simParamOutput.csv')):
-    param_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_simParamOutput.csv'), header=True, index=False)  
+    param_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_simParamOutput.csv'), header=True, index=False)
   if not os.path.exists(os.path.join(output_dir,str(sim_run_id) + '_inputParam.csv')):
     input_param_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_inputParam.csv'), header=True, index=False)
   if not os.path.exists(os.path.join(output_dir,str(sim_run_id) + '_invalidParams.csv')):
@@ -158,9 +156,9 @@ def get_dosage_df(filename):
                         'Drug2_1620','Drug1_1620',
                         'Drug2_1665','Drug1_1665',
                         'Drug2_1710','Drug1_1710',
-                        'Drug2_1755','Drug1_1755',                        
+                        'Drug2_1755','Drug1_1755',
                         ]
-                
+
   if os.path.exists(filename):
     dosage_df = pd.read_csv(filename,header=None)
     dosage_df.columns = param_column_names
@@ -188,7 +186,7 @@ def get_dosage_df(filename):
 
 
 def get_pop_df(filename, initial_pop_df):
-  param_column_names = ['Parameter_ID', 'Strategy_index', 
+  param_column_names = ['Parameter_ID', 'Strategy_index',
                         'Spop_45', 'R1pop_45', 'R2pop_45', 'R12pop_45',
                         'Spop_90', 'R1pop_90', 'R2pop_90', 'R12pop_90',
                         'Spop_135', 'R1pop_135', 'R2pop_135', 'R12pop_135',
@@ -230,58 +228,60 @@ def get_pop_df(filename, initial_pop_df):
                         'Spop_1755', 'R1pop_1755', 'R2pop_1755', 'R12pop_1755',
                         'Spop_1800', 'R1pop_1800', 'R2pop_1800', 'R12pop_1800']
 
-                  
+
   if os.path.exists(filename):
     pop_df = pd.read_csv(filename,header=None)
     pop_df.columns = param_column_names
+    strategy_map = { 0 : 'CPM', 1 : 'DPM', 2 : 'DPMtrial'}
+    pop_df['Strategy_index'] = pop_df['Strategy_index'].replace(strategy_map)
+    new_col_name = {'Strategy_index': 'Strategy_name'}
+    pop_df = pop_df.rename(columns = new_col_name)
 
     # add t = 0
-    pop_df['Spop_0'] = initial_pop_df['S_pop']
-    pop_df['R1pop_0'] = initial_pop_df['R1_pop']
-    pop_df['R2pop_0'] = initial_pop_df['R2_pop']
-    pop_df['R12pop_0'] = initial_pop_df['R12_pop']
+    initial_pop_df = initial_pop_df.rename(columns = {'S_pop':'Spop_0',
+                                                      'R1_pop':'R1pop_0',
+                                                      'R2_pop':'R2pop_0',
+                                                      'R12_pop':'R12pop_0',})
+    
+    pop_df = pd.merge(pop_df, initial_pop_df, on = (['Parameter_ID']))
 
-    melted_Spop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_index'], value_vars=[col for col in pop_df.columns if 'Spop' in col], var_name='timepoint', value_name='Spop')
+    melted_Spop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_name'], value_vars=[col for col in pop_df.columns if 'Spop' in col], var_name='timepoint', value_name='Spop')
     melted_Spop_df['timepoint'] = melted_Spop_df['timepoint'].str.extract(r'_(\d+)').astype(int)
-    melted_R1pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_index'], value_vars=[col for col in pop_df.columns if 'R1pop' in col], var_name='timepoint', value_name='R1pop')
+    melted_R1pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_name'], value_vars=[col for col in pop_df.columns if 'R1pop' in col], var_name='timepoint', value_name='R1pop')
     melted_R1pop_df['timepoint'] = melted_R1pop_df['timepoint'].str.extract(r'_(\d+)').astype(int)
-    melted_R2pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_index'], value_vars=[col for col in pop_df.columns if 'R2pop' in col], var_name='timepoint', value_name='R2pop')
+    melted_R2pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_name'], value_vars=[col for col in pop_df.columns if 'R2pop' in col], var_name='timepoint', value_name='R2pop')
     melted_R2pop_df['timepoint'] = melted_R2pop_df['timepoint'].str.extract(r'_(\d+)').astype(int)
-    melted_R12pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_index'], value_vars=[col for col in pop_df.columns if 'R12pop' in col], var_name='timepoint', value_name='R12pop')
+    melted_R12pop_df = pop_df.melt(id_vars=['Parameter_ID', 'Strategy_name'], value_vars=[col for col in pop_df.columns if 'R12pop' in col], var_name='timepoint', value_name='R12pop')
     melted_R12pop_df['timepoint'] = melted_R12pop_df['timepoint'].str.extract(r'_(\d+)').astype(int)
 
-    merged_pop_df = pd.merge(melted_Spop_df,melted_R1pop_df, on=['Parameter_ID', 'Strategy_index', 'timepoint'])
-    merged_pop_df = pd.merge(merged_pop_df,melted_R2pop_df, on=['Parameter_ID', 'Strategy_index', 'timepoint'])
-    merged_pop_df = pd.merge(merged_pop_df,melted_R12pop_df, on=['Parameter_ID', 'Strategy_index', 'timepoint'])
+    merged_pop_df = pd.merge(melted_Spop_df,melted_R1pop_df, on=['Parameter_ID', 'Strategy_name', 'timepoint'])
+    merged_pop_df = pd.merge(merged_pop_df,melted_R2pop_df, on=['Parameter_ID', 'Strategy_name', 'timepoint'])
+    merged_pop_df = pd.merge(merged_pop_df,melted_R12pop_df, on=['Parameter_ID', 'Strategy_name', 'timepoint'])
 
 
     #melted_dosage_df = pd.concat([melted_dosage_df, new_rows], ignore_index=True)
-    merged_pop_df = merged_pop_df.sort_values(by=['Parameter_ID', 'Strategy_index', 'timepoint']).reset_index(drop=True)
+    merged_pop_df = merged_pop_df.sort_values(by=['Parameter_ID', 'Strategy_name', 'timepoint']).reset_index(drop=True)
 
-    strategy_map = { 0 : 'CPM', 1 : 'DPM', 2 : 'DPMtrial'}
-    merged_pop_df['Strategy_index'] = merged_pop_df['Strategy_index'].replace(strategy_map)
-    new_col_name = {'Strategy_index': 'Strategy_name'}
-    merged_pop_df = merged_pop_df.rename(columns = new_col_name)
 
     return merged_pop_df
 
-    
+
   else:
     print('no pop_df ' + filename)
 
 
-def map_trajectories(sim_run_id, sim_results_dir, output_dir):
-  if not os.path.exists(os.path.join(output_dir,str(sim_run_id) + '_simTrajectories.csv')):
+def map_trajectories(sim_run_id, sim_results_dir, output_dir, overwrite_file = False):
+  if not os.path.exists(os.path.join(output_dir,str(sim_run_id) + '_simTrajectories.csv')) or overwrite_file == True :
     param_file = os.path.join(sim_results_dir,'param_ALLDRUG_' + str(sim_run_id) + '.csv')
     dosage_file = os.path.join(sim_results_dir,'dosage_ALLDRUG_' + str(sim_run_id) + '.csv')
     population_file = os.path.join(sim_results_dir,'pop_ALLDRUG_' + str(sim_run_id) + '.csv')
 
     param_df = get_param_df(param_file)
     dosage_df = get_dosage_df(dosage_file)
-    pop_df = get_pop_df(population_file, param_df[['S_pop','R1_pop','R2_pop','R12_pop']])
+    pop_df = get_pop_df(population_file, param_df[['Parameter_ID','S_pop','R1_pop','R2_pop','R12_pop']])
     traj_df = pd.merge(dosage_df, pop_df, on =['Parameter_ID', 'Strategy_name', 'timepoint'] )
     traj_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_simTrajectories.csv'), header = True, index = False)
-  
+
 def get_stopt_df(filename):
   param_column_names = ['Parameter_ID', 'Survival_CPM', 'Survival_DPM', 'Survival_DPMtrial']
   if os.path.exists(filename):
@@ -309,7 +309,7 @@ def collect_EC_and_survival(sim_run_id, sim_results_dir, output_dir):
       DPM_drug_0 = param_trajectory_0_df[param_trajectory_0_df['Strategy_name'] == 'DPM']['Drug1_dosage'].iloc[0]
       CPM_drug_45 = param_trajectory_45_df[param_trajectory_45_df['Strategy_name'] == 'CPM']['Drug1_dosage'].iloc[0]
       DPM_drug_45 = param_trajectory_45_df[param_trajectory_45_df['Strategy_name'] == 'DPM']['Drug1_dosage'].iloc[0]
-      
+
       if CPM_drug_0 == DPM_drug_0 and CPM_drug_45 == DPM_drug_45:
         category_list.append('both_same')
       elif CPM_drug_0 == DPM_drug_0 and CPM_drug_45 != DPM_drug_45:
@@ -351,16 +351,16 @@ def collect_EC_and_survival(sim_run_id, sim_results_dir, output_dir):
     survival_df['DPM_improve_over_75_percent'] = survival_df['DPM_percent_improvement'] >= 0.75
 
     survival_df.to_csv(os.path.join(output_dir,str(sim_run_id) + '_ECsurvival.csv'), header = True, index = False)
-    
+
 def process_sim_output(sim_run_id, sim_results_dir, output_dir):
   map_parameters(sim_run_id, sim_results_dir, output_dir)
   map_trajectories(sim_run_id, sim_results_dir, output_dir)
   collect_EC_and_survival(sim_run_id, sim_results_dir, output_dir) 
 
-def get_starting_index():
+def get_sim_id_subset(run_id_list):
   if len(sys.argv) > 1:
     try:
-      return int(sys.argv[1])
+      return run_id_list[sys.argv[1],sys.argv[2])
     except ValueError:
       print("Please provide a valid integer.")
       return
@@ -373,9 +373,9 @@ os.makedirs(output_dir, exist_ok=True)
 
 param_files = [f for f in os.listdir(sim_results_dir) if os.path.isfile(os.path.join(sim_results_dir, f))]
 run_id_list = list(set([ os.path.splitext(os.path.basename(x))[0].split("_")[2] for x in param_files ]))
-starting_index = get_starting_index()
-print(starting_index)
-run_id_list = run_id_list[starting_index:]
+if len(sys.argv) > 1:
+  run_id_list = get_sim_id_subset(run_id_list):
+
 
 for run_id in run_id_list:
   print(run_id)
