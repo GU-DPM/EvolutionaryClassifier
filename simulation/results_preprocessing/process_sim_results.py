@@ -317,7 +317,7 @@ def collect_EC_and_survival(sim_run_id, sim_results_dir, output_dir):
       elif CPM_drug_0 != DPM_drug_0 and CPM_drug_45 == DPM_drug_45:
         category_list.append('second_same_only')
       else:
-        category_list.append('both diff')
+        category_list.append('both_diff')
 
     category_df = pd.DataFrame({'Parameter_ID' : param_id_list,
                                 'EC_category' : category_list})
