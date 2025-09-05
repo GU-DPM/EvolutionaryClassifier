@@ -16,6 +16,8 @@ The code can be run in parallel using the bash scripts found in simulation/code/
 
 ### code
 
+### files for downstream analysis
+
 ## analysis
 
 ### population subset analysis
