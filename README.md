@@ -117,39 +117,24 @@ Each line denotes the population composition dynamics of each strategy for each 
 ...
 
 42) (S,R1,R1,R12) at t=1800.
+- If t exceeds the survival time of the strategy, then the population size is set to -1.
+- Notice the dosage combination is reported at the beginning of each period, and the population composition is reported at the end of each period.
 
-If t exceeds the survival time of the strategy, then the population size is set to -1.
-
-Notice the dosage combination is reported at the beginning of each period, and the population composition is reported at the end of each period.
-
-
-
-[Zenodo archive](https://zenodo.org/records/12585250_)
+The raw output from the study can be found in the [Zenodo archive](https://zenodo.org/records/12585250_).
 
 
 ### Processing the raw simultion output
-https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/results_preprocessing/map_input_params.py
+Code is provided to process the raw simultion output into a form that ie more amenable to data processing and downstream analysis. It aggregates all the outputs over valid input paramter ranges. 
 
-add process all sim files notebook
+The processing is provided as a [python script](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/results_preprocessing/map_input_params.py) and as a [colab notebook](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/process_all_sim_files.ipynb)
 
-
-map_parameters
-generate all parameter 
-"folded" input parameter 
-
-map_trajectories
-
-dosage trajectory
-population trajectory
-
-
-collect_EC_and_survival
-EC catagory and survival days for all strategies
-days improvement
+The code processes the output in 3 ways.
+- The code output provides a raw output of each individual simulation parameter, but no mapping back to the origional 9, interpretable simulation inputs. The code will generate csv files of both the "folded" input parameters and the entire parameter set.
+- "Trajectories" are generated for each unique combination of parameters and treatment strategy. This transforms the output to a format where each patient/strategy/timepoint combination is a single row of the csv. Files are generated for the subclonal population sizes and the drug selection of each strategy over the course of the simulation for each simulated patient. 
+- The EC category (the difference in drug selection between DPM and CPM in the first two treatment windows) is colleted, as well as tabulating the absolute and relative survival difference between the strategies.
 
 ## analysis
-google bigquery
-
+The tables produced by the results preprocessing scripts were uploaded into Google Bigquery to enable their efficient processing by downstream analysis scripts. To access this dataset, please contant Dr. Matthew McCoy.  
 
 
 survival less than 4 years on DPM,       AND sp.S_cell_sensitivity_D1 > 0.2 * sp.g0
@@ -157,7 +142,7 @@ survival less than 4 years on DPM,       AND sp.S_cell_sensitivity_D1 > 0.2 * sp
       AND sp.R12_cell_sensitivity_D1 < sp.g0
       AND sp.R12_cell_sensitivity_D2 < sp.g0
 
-https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/EC_survival_and_params.zip
+[this dataset](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/EC_survival_and_params.zip)
 
 
 
