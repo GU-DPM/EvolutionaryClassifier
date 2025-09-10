@@ -134,23 +134,18 @@ The code processes the output in 3 ways.
 - The EC category (the difference in drug selection between DPM and CPM in the first two treatment windows) is colleted, as well as tabulating the absolute and relative survival difference between the strategies.
 
 ## analysis
-The tables produced by the results preprocessing scripts were uploaded into Google Bigquery to enable their efficient processing by downstream analysis scripts. To access this dataset, please contant Dr. Matthew McCoy.  
+The tables produced by the results preprocessing scripts were uploaded into Google BigQuery to enable their efficient processing by downstream analysis scripts. The processed output data was converted into an SQL database, and used to complete the downstream analysis for the manuscript. To access this BigQuery Database, please contant Dr. Matthew McCoy.  
+
+A [python notebook](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/notebooks/Explore_DPM_Trial_Simulation.ipynb) provides the SQL query used to generate the [study population](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/EC_survival_and_params.zip), and code to generate survival plots, hazard ratios, and classifier statistics from various evolutionary classifiers, as well as analysis of individual patient trajectories. The the following filters to the simulation output.
+- Containts patients with CPM survival < 4 years (to filter for patients with potential to benefit from DPM during the 5 year simulation)
+- ensure S cell drug sensitivity was at least 20% of the natural growth rate (to place minimal requirements on drug effectiveness)
+- R12 cell sensitivity to both drugs was less than the natural growth rate (to ensure R12 cells are incurable).
+
+[The overall dataset](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/EC_survival_and_params.zip) is provided for further downstream analysis.
 
 
-survival less than 4 years on DPM,       AND sp.S_cell_sensitivity_D1 > 0.2 * sp.g0
-      AND sp.S_cell_sensitivity_D2 > 0.2 * sp.g0
-      AND sp.R12_cell_sensitivity_D1 < sp.g0
-      AND sp.R12_cell_sensitivity_D2 < sp.g0
+This dataset can be used as input to a notebook contains code that provides more generalized examples of how to [analyze 2 move dataset](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/notebooks/Analyze_2_move_DPM.ipynb) by generatings subsets based on any of the input or model parameters, and perform downstream population analysis. 
 
-[this dataset](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/analysis/EC_survival_and_params.zip)
-
-
-
-population subset analysis
-
-indiviual patient analysis
-
-analyze_2_move
 
 ## archive
 This is a spot for legacy code that has been replace by updated methods and is NOT maintained.
