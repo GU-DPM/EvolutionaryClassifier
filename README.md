@@ -120,13 +120,13 @@ Each line denotes the population composition dynamics of each strategy for each 
 - If t exceeds the survival time of the strategy, then the population size is set to -1.
 - Notice the dosage combination is reported at the beginning of each period, and the population composition is reported at the end of each period.
 
-The raw output from the study can be found in the [Zenodo archive](https://zenodo.org/records/12585250_).
+The raw output from the study can be found in the [Zenodo archive](https://zenodo.org/records/12585250).
 
 
 ### Processing the raw simultion output
 Code is provided to process the raw simultion output into a form that ie more amenable to data processing and downstream analysis. It aggregates all the outputs over valid input paramter ranges. 
 
-The processing is provided as a [python script](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/results_preprocessing/map_input_params.py) and as a [colab notebook](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/process_all_sim_files.ipynb)
+The processing is provided as a [python script](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/process_sim_results.py) and as a [colab notebook](https://github.com/GU-DPM/EvolutionaryClassifier/blob/main/simulation/process_all_sim_files.ipynb)
 
 The code processes the output in 3 ways.
 - The code output provides a raw output of each individual simulation parameter, but no mapping back to the origional 9, interpretable simulation inputs. The code will generate csv files of both the "folded" input parameters and the entire parameter set.
